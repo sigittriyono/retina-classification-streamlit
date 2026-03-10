@@ -256,9 +256,10 @@ with col_right:
     if uploaded_file:
         # Preprocess
         img = image.resize((224, 224))
-        img_array = np.array(img, dtype=np.float32) / 255.0
+        img_array = np.array(img, dtype=np.float32)
+        img_array = img_array[:, :, ::-1]  # RGB → BGR
+        img_array -= np.array([103.939, 116.779, 123.68], dtype=np.float32)
         img_array = np.expand_dims(img_array, axis=0)
-
         # Predict
         input_name = session.get_inputs()[0].name
         prediction = session.run(None, {input_name: img_array})[0]
