@@ -3,21 +3,16 @@ import numpy as np
 from PIL import Image
 import gdown
 import os
-
-try:
-    import tflite_runtime.interpreter as tflite
-except ImportError:
-    import tensorflow.lite as tflite
+import onnxruntime as ort
 
 st.set_page_config(page_title="Retina Classification", layout="centered")
 st.title("Retina Disease Classification")
 st.write("Upload gambar retina untuk melakukan klasifikasi penyakit.")
 
-MODEL_PATH = "retina_model.tflite"
+MODEL_PATH = "retina_model.onnx"
 
 def download_model():
-    # Ganti dengan ID file .tflite yang baru
-    url = "https://drive.google.com/uc?id=1OHR5bZpfFVVLRRCfCLkeoNaVkAadighm"
+    url = "https://drive.google.com/uc?id=1O001N_8sAC4RQ8xV4g5sZtrdzFnttWP_"# ganti ID
     with st.spinner("Downloading model..."):
         output = gdown.download(url, MODEL_PATH, quiet=False, fuzzy=True)
     if output is None:
@@ -29,12 +24,10 @@ if not os.path.exists(MODEL_PATH):
 
 @st.cache_resource
 def load_model():
-    interpreter = tflite.Interpreter(model_path=MODEL_PATH)
-    interpreter.allocate_tensors()
-    return interpreter
+    return ort.InferenceSession(MODEL_PATH)
 
 try:
-    interpreter = load_model()
+    session = load_model()
 except Exception as e:
     st.error(f"❌ Gagal load model: {e}")
     st.stop()
@@ -49,16 +42,10 @@ if uploaded_file is not None:
     img = np.array(img, dtype=np.float32) / 255.0
     img = np.expand_dims(img, axis=0)
 
-    # Inference dengan TFLite
-    input_details = interpreter.get_input_details()
-    output_details = interpreter.get_output_details()
+    input_name = session.get_inputs()[0].name
+    prediction = session.run(None, {input_name: img})[0]
 
-    interpreter.set_tensor(input_details[0]['index'], img)
-    interpreter.invoke()
-
-    prediction = interpreter.get_tensor(output_details[0]['index'])
     classes = ["Normal", "Diabetic Retinopathy"]
-
     predicted_index = int(np.argmax(prediction))
     confidence = float(np.max(prediction)) * 100
 
