@@ -184,7 +184,7 @@ except Exception as e:
     st.stop()
 
 # ─── Grad-CAM (ONNX approximation via occlusion sensitivity) ────────────────────
-def compute_gradcam_occlusion(session, img_array, patch_size=28):
+def compute_gradcam_occlusion(session, img_array, patch_size=56, stride=28):
     """
     Occlusion-based saliency map sebagai pengganti Grad-CAM untuk model ONNX.
     Menutup area gambar secara bertahap dan mengukur perubahan prediksi.
@@ -198,12 +198,12 @@ def compute_gradcam_occlusion(session, img_array, patch_size=28):
     saliency = np.zeros((h, w), dtype=np.float32)
     count_map = np.zeros((h, w), dtype=np.float32)
 
-    for y in range(0, h, patch_size // 2):
-        for x in range(0, w, patch_size // 2):
+    for y in range(0, h, stride):
+        for x in range(0, w, stride):
             occluded = img_array.copy()
             y2 = min(y + patch_size, h)
             x2 = min(x + patch_size, w)
-            occluded[0, y:y2, x:x2, :] = 0.5  # grey patch
+            occluded[0, y:y2, x:x2, :] = 0.5
             occ_pred = session.run(None, {input_name: occluded})[0][0]
             drop = base_score - occ_pred[pred_class]
             saliency[y:y2, x:x2] += drop
@@ -212,6 +212,7 @@ def compute_gradcam_occlusion(session, img_array, patch_size=28):
     count_map = np.maximum(count_map, 1)
     saliency = saliency / count_map
     saliency = np.maximum(saliency, 0)
+    saliency = cv2.GaussianBlur(saliency, (21, 21), 0)
     if saliency.max() > 0:
         saliency = saliency / saliency.max()
     return saliency
@@ -241,7 +242,7 @@ with col_left:
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.markdown('<div class="card-title">Upload Citra Retina (OCT)</div>', unsafe_allow_html=True)
     st.markdown('<div class="upload-hint">Format: JPG, JPEG, PNG</div>', unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
+    uploaded_file = st.file_uploader("Upload gambar retina", type=["jpg", "jpeg", "png"], label_visibility="collapsed")
     st.markdown('</div>', unsafe_allow_html=True)
 
     if uploaded_file:
@@ -290,7 +291,7 @@ with col_right:
         st.markdown('<div class="card-title">Grad-CAM Visualization</div>', unsafe_allow_html=True)
 
         with st.spinner("Menghitung saliency map..."):
-            saliency = compute_gradcam_occlusion(session, img_array, patch_size=28)
+            saliency = compute_gradcam_occlusion(session, img_array)
             cam_image = overlay_gradcam(image, saliency)
 
         g1, g2 = st.columns(2)
