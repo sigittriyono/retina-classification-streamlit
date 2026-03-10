@@ -6,7 +6,6 @@ import gdown
 import os
 
 st.set_page_config(page_title="Retina Classification", layout="centered")
-
 st.title("Retina Disease Classification")
 st.write("Upload gambar retina untuk melakukan klasifikasi penyakit.")
 
@@ -14,7 +13,11 @@ MODEL_PATH = "retina_model.h5"
 
 def download_model():
     url = "https://drive.google.com/uc?id=1XsQi3KnKMmYAF2k-NURdMRYzX0D2lVDd"
-    gdown.download(url, MODEL_PATH, quiet=False)
+    with st.spinner("Downloading model..."):
+        output = gdown.download(url, MODEL_PATH, quiet=False, fuzzy=True)
+    if output is None:
+        st.error("❌ Gagal download model dari Google Drive.")
+        st.stop()
 
 if not os.path.exists(MODEL_PATH):
     download_model()
@@ -23,27 +26,31 @@ if not os.path.exists(MODEL_PATH):
 def load_model():
     return tf.keras.models.load_model(MODEL_PATH)
 
-model = load_model()
+try:
+    model = load_model()
+except Exception as e:
+    st.error(f"❌ Gagal load model: {e}")
+    st.stop()
 
-uploaded_file = st.file_uploader(
-    "Upload Retina Image",
-    type=["jpg","jpeg","png"]
-)
+uploaded_file = st.file_uploader("Upload Retina Image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file is not None:
-
     image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+    st.image(image, caption="Uploaded Image", use_container_width=True)  # ✅ diperbaiki
 
-    img = image.resize((224,224))
-    img = np.array(img)/255.0
+    img = image.resize((224, 224))
+    img = np.array(img) / 255.0
     img = np.expand_dims(img, axis=0)
 
     prediction = model.predict(img)
+    classes = ["Normal", "Diabetic Retinopathy"]
 
-    classes = ["Normal","Diabetic Retinopathy"]
+    predicted_index = int(np.argmax(prediction))
+    confidence = float(np.max(prediction)) * 100
 
-    result = classes[np.argmax(prediction)]
-
-    st.subheader("Prediction Result")
-    st.success(result)
+    if predicted_index < len(classes):
+        result = classes[predicted_index]
+        st.subheader("Prediction Result")
+        st.success(f"**{result}** ({confidence:.2f}% confidence)")
+    else:
+        st.error(f"Index prediksi ({predicted_index}) di luar range kelas yang tersedia.")
