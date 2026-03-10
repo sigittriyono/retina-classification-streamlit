@@ -1,9 +1,11 @@
 import streamlit as st
 import numpy as np
-import tensorflow as tf
 from PIL import Image
 import gdown
 import os
+
+# Ganti tensorflow dengan keras standalone
+import keras
 
 st.set_page_config(page_title="Retina Classification", layout="centered")
 st.title("Retina Disease Classification")
@@ -24,7 +26,7 @@ if not os.path.exists(MODEL_PATH):
 
 @st.cache_resource
 def load_model():
-    return tf.keras.models.load_model(MODEL_PATH)
+    return keras.models.load_model(MODEL_PATH)
 
 try:
     model = load_model()
@@ -36,7 +38,7 @@ uploaded_file = st.file_uploader("Upload Retina Image", type=["jpg", "jpeg", "pn
 
 if uploaded_file is not None:
     image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_container_width=True)  # ✅ diperbaiki
+    st.image(image, caption="Uploaded Image", use_container_width=True)
 
     img = image.resize((224, 224))
     img = np.array(img) / 255.0
@@ -48,9 +50,6 @@ if uploaded_file is not None:
     predicted_index = int(np.argmax(prediction))
     confidence = float(np.max(prediction)) * 100
 
-    if predicted_index < len(classes):
-        result = classes[predicted_index]
-        st.subheader("Prediction Result")
-        st.success(f"**{result}** ({confidence:.2f}% confidence)")
-    else:
-        st.error(f"Index prediksi ({predicted_index}) di luar range kelas yang tersedia.")
+    result = classes[predicted_index]
+    st.subheader("Prediction Result")
+    st.success(f"**{result}** ({confidence:.2f}% confidence)")
