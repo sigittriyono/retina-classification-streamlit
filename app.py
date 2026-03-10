@@ -1,4 +1,3 @@
-app_code = """
 import streamlit as st
 import numpy as np
 import tensorflow as tf
@@ -47,7 +46,3 @@ if uploaded_file is not None:
 
     st.subheader("Prediction Result")
     st.success(result)
-"""
-
-with open("app.py","w") as f:
-    f.write(app_code)
