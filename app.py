@@ -14,7 +14,7 @@ MODEL_PATH = "retina_model.h5"
 
 # download model jika belum ada
 def download_model():
-    url = "https://drive.google.com/file/d/1XsQi3KnKMmYAF2k-NURdMRYzX0D2lVDd/view?usp=sharing"
+    url = "https://drive.google.com/uc?id=1XsQi3KnKMmYAF2k-NURdMRYzX0D2lVDd"
     gdown.download(url, MODEL_PATH, quiet=False)
 
 if not os.path.exists(MODEL_PATH):
