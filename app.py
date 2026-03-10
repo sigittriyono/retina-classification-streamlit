@@ -12,7 +12,7 @@ st.write("Upload gambar retina untuk melakukan klasifikasi penyakit.")
 MODEL_PATH = "retina_model.onnx"
 
 def download_model():
-    url = "https://drive.google.com/uc?id=1O001N_8sAC4RQ8xV4g5sZtrdzFnttWP_"# ganti ID
+    url = "https://drive.google.com/uc?id=1O001N_8sAC4RQ8xV4g5sZtrdzFnttWP_"
     with st.spinner("Downloading model..."):
         output = gdown.download(url, MODEL_PATH, quiet=False, fuzzy=True)
     if output is None:
