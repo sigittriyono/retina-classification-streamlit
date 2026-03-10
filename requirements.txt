@@ -1,0 +1,10 @@
+req = """
+streamlit
+tensorflow
+numpy
+pillow
+gdown
+"""
+
+with open("requirements.txt","w") as f:
+    f.write(req)
