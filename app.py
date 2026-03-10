@@ -4,21 +4,24 @@ from PIL import Image
 import gdown
 import os
 
-# Ganti tensorflow dengan keras standalone
-import keras
+try:
+    import tflite_runtime.interpreter as tflite
+except ImportError:
+    import tensorflow.lite as tflite
 
 st.set_page_config(page_title="Retina Classification", layout="centered")
 st.title("Retina Disease Classification")
 st.write("Upload gambar retina untuk melakukan klasifikasi penyakit.")
 
-MODEL_PATH = "retina_model.h5"
+MODEL_PATH = "retina_model.tflite"
 
 def download_model():
-    url = "https://drive.google.com/uc?id=1XsQi3KnKMmYAF2k-NURdMRYzX0D2lVDd"
+    # Ganti dengan ID file .tflite yang baru
+    url = "https://drive.google.com/uc?id=1OHR5bZpfFVVLRRCfCLkeoNaVkAadighm"
     with st.spinner("Downloading model..."):
         output = gdown.download(url, MODEL_PATH, quiet=False, fuzzy=True)
     if output is None:
-        st.error("❌ Gagal download model dari Google Drive.")
+        st.error("❌ Gagal download model.")
         st.stop()
 
 if not os.path.exists(MODEL_PATH):
@@ -26,10 +29,12 @@ if not os.path.exists(MODEL_PATH):
 
 @st.cache_resource
 def load_model():
-    return keras.models.load_model(MODEL_PATH)
+    interpreter = tflite.Interpreter(model_path=MODEL_PATH)
+    interpreter.allocate_tensors()
+    return interpreter
 
 try:
-    model = load_model()
+    interpreter = load_model()
 except Exception as e:
     st.error(f"❌ Gagal load model: {e}")
     st.stop()
@@ -41,10 +46,17 @@ if uploaded_file is not None:
     st.image(image, caption="Uploaded Image", use_container_width=True)
 
     img = image.resize((224, 224))
-    img = np.array(img) / 255.0
+    img = np.array(img, dtype=np.float32) / 255.0
     img = np.expand_dims(img, axis=0)
 
-    prediction = model.predict(img)
+    # Inference dengan TFLite
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
+
+    interpreter.set_tensor(input_details[0]['index'], img)
+    interpreter.invoke()
+
+    prediction = interpreter.get_tensor(output_details[0]['index'])
     classes = ["Normal", "Diabetic Retinopathy"]
 
     predicted_index = int(np.argmax(prediction))
