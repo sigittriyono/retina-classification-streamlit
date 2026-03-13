@@ -431,8 +431,8 @@ st.markdown("""
     <span class="badge active">8 Kelas Penyakit</span>
     <span class="badge active">ResNet-50</span>
     <span class="badge active">Grad-CAM</span>
-    <span class="badge">OCT Imaging</span>
-    <span class="badge">Academic Use</span>
+    <span class="badge active">OCT Imaging</span>
+    <span class="badge active">Academic Use</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
