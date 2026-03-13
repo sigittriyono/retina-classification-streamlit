@@ -486,8 +486,8 @@ with col_right:
         <div class="pred-grid">
           <div class="pred-class-box">
             <div class="pred-class-label">Diagnosed Class</div>
-            <div class="pred-class-value">{pred_class}</div>
-            <div class="pred-class-full">{full_name}</div>
+            <div class="pred-class-value" style="font-size:1.1rem;line-height:1.3;">{full_name}</div>
+            <div class="pred-class-full">{pred_class}</div>
           </div>
           <div class="pred-conf-box">
             <div class="pred-conf-label">Confidence Score</div>
