@@ -411,14 +411,81 @@ def make_overlay(original_pil, saliency_map):
     overlay = cv2.addWeighted(orig, 0.52, heatmap_color, 0.48, 0)
     return Image.fromarray(overlay)
 
-def is_valid_retina(probs, confidence_threshold=0.5, entropy_threshold=1.8):
-    from scipy.stats import entropy
+# ─── Validasi Retina (Multi-Layer) ───────────────────────────────────────────
+def analyze_image_characteristics(pil_image):
+    """Cek karakteristik visual citra OCT retina."""
+    img_np = np.array(pil_image.resize((224, 224)))
+
+    # 1. Cek apakah dominan grayscale (OCT hampir selalu grayscale/near-gray)
+    r, g, b = img_np[:,:,0], img_np[:,:,1], img_np[:,:,2]
+    rg_diff = float(np.mean(np.abs(r.astype(int) - g.astype(int))))
+    rb_diff = float(np.mean(np.abs(r.astype(int) - b.astype(int))))
+    gb_diff = float(np.mean(np.abs(g.astype(int) - b.astype(int))))
+    avg_color_diff = (rg_diff + rb_diff + gb_diff) / 3
+
+    # Gambar berwarna cerah (selfie, foto) punya avg_color_diff tinggi
+    is_grayscale_like = avg_color_diff < 18.0
+
+    # 2. Cek brightness — OCT cenderung gelap (mean rendah)
+    gray = np.mean(img_np, axis=2)
+    mean_brightness = float(np.mean(gray))
+    std_brightness  = float(np.std(gray))
+
+    # OCT: mean biasanya 30–160, std 20–80
+    brightness_ok = (20 < mean_brightness < 200) and (15 < std_brightness < 100)
+
+    # 3. Cek dominasi warna — foto natural punya saturasi tinggi
+    hsv = cv2.cvtColor(img_np, cv2.COLOR_RGB2HSV)
+    mean_saturation = float(np.mean(hsv[:,:,1]))
+    low_saturation = mean_saturation < 35  # OCT hampir tidak berwarna
+
+    return {
+        "is_grayscale_like": is_grayscale_like,
+        "brightness_ok": brightness_ok,
+        "low_saturation": low_saturation,
+        "avg_color_diff": avg_color_diff,
+        "mean_brightness": mean_brightness,
+        "mean_saturation": mean_saturation,
+    }
+
+def is_valid_retina(probs, pil_image,
+                    confidence_threshold=0.45,
+                    entropy_threshold=1.6,
+                    top2_gap_threshold=0.15):
+    from scipy.stats import entropy as scipy_entropy
+
+    # ── Lapis 1: Karakteristik visual ──
+    chars = analyze_image_characteristics(pil_image)
+    visual_score = sum([
+        chars["is_grayscale_like"],
+        chars["brightness_ok"],
+        chars["low_saturation"],
+    ])
+    if visual_score < 2:
+        reasons = []
+        if not chars["is_grayscale_like"]:
+            reasons.append(f"warna terlalu bervariasi (diff={chars['avg_color_diff']:.1f})")
+        if not chars["low_saturation"]:
+            reasons.append(f"saturasi warna terlalu tinggi ({chars['mean_saturation']:.1f})")
+        if not chars["brightness_ok"]:
+            reasons.append(f"kecerahan tidak normal ({chars['mean_brightness']:.1f})")
+        return False, "Karakteristik visual tidak sesuai OCT retina: " + ", ".join(reasons)
+
+    # ── Lapis 2: Confidence & Entropy ──
     max_conf = float(np.max(probs))
     if max_conf < confidence_threshold:
-        return False, f"Confidence terlalu rendah ({max_conf*100:.1f}%)"
-    ent = float(entropy(probs))
+        return False, f"Confidence terlalu rendah ({max_conf*100:.1f}% < {confidence_threshold*100:.0f}%)"
+
+    ent = float(scipy_entropy(probs))
     if ent > entropy_threshold:
-        return False, f"Distribusi prediksi tidak meyakinkan (entropy: {ent:.2f})"
+        return False, f"Model tidak dapat mengenali pola retina (entropy={ent:.2f})"
+
+    # ── Lapis 3: Top-2 gap ──
+    sorted_probs = np.sort(probs)[::-1]
+    top2_gap = float(sorted_probs[0] - sorted_probs[1])
+    if top2_gap < top2_gap_threshold:
+        return False, f"Prediksi tidak meyakinkan — model ragu antar kelas (gap={top2_gap:.2f})"
+
     return True, "OK"
 
 # ─── Hero ────────────────────────────────────────────────────────────────────
@@ -487,7 +554,7 @@ with col_right:
         probs = raw_output[0]
 
         # ── Validasi gambar ──
-        is_valid, reason = is_valid_retina(probs)
+        is_valid, reason = is_valid_retina(probs, image)  # ← tambah image
         if not is_valid:
             st.markdown(f"""
             <div class="panel" style="border-color:rgba(255,90,90,0.3);">
