@@ -411,6 +411,16 @@ def make_overlay(original_pil, saliency_map):
     overlay = cv2.addWeighted(orig, 0.52, heatmap_color, 0.48, 0)
     return Image.fromarray(overlay)
 
+def is_valid_retina(probs, confidence_threshold=0.5, entropy_threshold=1.8):
+    from scipy.stats import entropy
+    max_conf = float(np.max(probs))
+    if max_conf < confidence_threshold:
+        return False, f"Confidence terlalu rendah ({max_conf*100:.1f}%)"
+    ent = float(entropy(probs))
+    if ent > entropy_threshold:
+        return False, f"Distribusi prediksi tidak meyakinkan (entropy: {ent:.2f})"
+    return True, "OK"
+
 # ─── Hero ────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="hero">
@@ -475,10 +485,44 @@ with col_right:
         input_name = session.get_inputs()[0].name
         raw_output = session.run(None, {input_name: img_array})[0]
         probs = raw_output[0]
+
+        # ── Validasi gambar ──
+        is_valid, reason = is_valid_retina(probs)
+        if not is_valid:
+            st.markdown(f"""
+            <div class="panel" style="border-color:rgba(255,90,90,0.3);">
+              <div class="panel-label" style="color:#ff5a5a;">⚠ · Gambar Tidak Valid</div>
+              <div style="display:flex;gap:14px;align-items:flex-start;">
+                <div style="font-size:2rem;opacity:0.6;">🚫</div>
+                <div>
+                  <div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;
+                              color:#ff5a5a;margin-bottom:6px;">
+                    Bukan Citra Retina OCT
+                  </div>
+                  <div style="font-size:0.83rem;color:#5a7a96;line-height:1.6;">
+                    Gambar yang diupload tidak terdeteksi sebagai citra retina OCT yang valid.<br>
+                    <span style="color:#3d5a70;font-family:'IBM Plex Mono',monospace;
+                                 font-size:0.75rem;">ALASAN: {reason}</span>
+                  </div>
+                  <div style="margin-top:14px;padding:12px 14px;background:rgba(255,90,90,0.05);
+                              border:1px solid rgba(255,90,90,0.15);border-radius:8px;
+                              font-size:0.78rem;color:#3d5a70;line-height:1.6;">
+                    ◈ Pastikan gambar adalah citra OCT retina<br>
+                    ◈ Format yang didukung: JPG, JPEG, PNG<br>
+                    ◈ Hindari gambar foto biasa, selfie, atau objek non-medis
+                  </div>
+                </div>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.stop()
+
         pred_index = int(np.argmax(probs))
         confidence = float(np.max(probs))
         pred_class = CLASSES[pred_index]
         full_name, description = DISEASE_INFO[pred_class]
+
+        # ── Result ──
 
         # ── Result ──
         st.markdown('<div class="panel"><div class="panel-label">03 · Hasil Prediksi Model</div>', unsafe_allow_html=True)
