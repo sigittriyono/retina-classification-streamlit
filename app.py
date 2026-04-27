@@ -360,7 +360,7 @@ MODEL_PATH = "retina_model.onnx"
 def download_model():
     url = "https://drive.google.com/uc?id=1O001N_8sAC4RQ8xV4g5sZtrdzFnttWP_"
     with st.spinner("⏳ Mengunduh model ONNX..."):
-        output = gdown.download(url, MODEL_PATH, quiet=False, fuzzy=True)
+        output = gdown.download(url, MODEL_PATH, quiet=False)
     if output is None or not os.path.exists(MODEL_PATH):
         st.error("❌ Gagal mengunduh model.")
         st.stop()
